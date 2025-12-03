@@ -4,13 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Ikan;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+// pakai Http untuk kirim file ke Cloudinary
+use Illuminate\Support\Facades\Http;
 
 class IkanController extends Controller
 {
     public function index(Request $request)
     {
-        // ambil kata kunci pencarian (optional)
         $q = $request->input('q');
 
         $ikans = Ikan::query()
@@ -20,7 +20,7 @@ class IkanController extends Controller
             })
             ->orderByDesc('id')
             ->paginate(5)
-            ->withQueryString(); // supaya parameter ?q= tetap ada di pagination
+            ->withQueryString();
 
         return view('admin.ikan.index', compact('ikans'));
     }
@@ -32,21 +32,55 @@ class IkanController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        $data = $request->validate([
             'nama'      => 'required|string|max:255',
             'kategori'  => 'nullable|string|max:100',
             'harga'     => 'required|integer|min:0',
             'stok'      => 'required|integer|min:0',
             'deskripsi' => 'nullable|string',
-            'gambar'    => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            // boleh kosong, maksimal 5 MB (5120 KB)
+            'gambar'    => 'nullable|file|mimes:jpeg,png,jpg,gif,svg|max:5120',
         ]);
 
-        $data = $request->only(['nama', 'kategori', 'harga', 'stok', 'deskripsi']);
-
+        // upload ke Cloudinary kalau ada file
         if ($request->hasFile('gambar')) {
-            // disimpan di storage/app/public/ikan
-            $path = $request->file('gambar')->store('ikan', 'public');
-            $data['gambar'] = $path;
+            try {
+                $file = $request->file('gambar');
+
+                $response = Http::asMultipart()->post(
+                    'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
+                    [
+                        [
+                            'name'     => 'file',
+                            'contents' => fopen($file->getRealPath(), 'r'),
+                            'filename' => $file->getClientOriginalName(),
+                        ],
+                        [
+                            'name'     => 'upload_preset',
+                            'contents' => env('CLOUDINARY_UPLOAD_PRESET'),
+                        ],
+                    ]
+                );
+
+                $result = $response->json();
+
+                if (isset($result['secure_url'])) {
+                    // simpan URL gambar Cloudinary di kolom `gambar`
+                    $data['gambar'] = $result['secure_url'];
+                } else {
+                    return back()
+                        ->withErrors([
+                            'gambar' => 'Cloudinary upload error: ' . ($result['error']['message'] ?? 'Unknown error'),
+                        ])
+                        ->withInput();
+                }
+            } catch (\Exception $e) {
+                return back()
+                    ->withErrors([
+                        'gambar' => 'Cloudinary error: ' . $e->getMessage(),
+                    ])
+                    ->withInput();
+            }
         }
 
         Ikan::create($data);
@@ -62,25 +96,53 @@ class IkanController extends Controller
 
     public function update(Request $request, Ikan $ikan)
     {
-        $request->validate([
+        $data = $request->validate([
             'nama'      => 'required|string|max:255',
             'kategori'  => 'nullable|string|max:100',
             'harga'     => 'required|integer|min:0',
             'stok'      => 'required|integer|min:0',
             'deskripsi' => 'nullable|string',
-            'gambar'    => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'gambar'    => 'nullable|file|mimes:jpeg,png,jpg,gif,svg|max:5120',
         ]);
 
-        $data = $request->only(['nama', 'kategori', 'harga', 'stok', 'deskripsi']);
-
+        // kalau user upload gambar baru → kirim lagi ke Cloudinary
         if ($request->hasFile('gambar')) {
-            // hapus gambar lama jika ada
-            if ($ikan->gambar && Storage::disk('public')->exists($ikan->gambar)) {
-                Storage::disk('public')->delete($ikan->gambar);
-            }
+            try {
+                $file = $request->file('gambar');
 
-            $path = $request->file('gambar')->store('ikan', 'public');
-            $data['gambar'] = $path;
+                $response = Http::asMultipart()->post(
+                    'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
+                    [
+                        [
+                            'name'     => 'file',
+                            'contents' => fopen($file->getRealPath(), 'r'),
+                            'filename' => $file->getClientOriginalName(),
+                        ],
+                        [
+                            'name'     => 'upload_preset',
+                            'contents' => env('CLOUDINARY_UPLOAD_PRESET'),
+                        ],
+                    ]
+                );
+
+                $result = $response->json();
+
+                if (isset($result['secure_url'])) {
+                    $data['gambar'] = $result['secure_url'];
+                } else {
+                    return back()
+                        ->withErrors([
+                            'gambar' => 'Cloudinary upload error: ' . ($result['error']['message'] ?? 'Unknown error'),
+                        ])
+                        ->withInput();
+                }
+            } catch (\Exception $e) {
+                return back()
+                    ->withErrors([
+                        'gambar' => 'Cloudinary error: ' . $e->getMessage(),
+                    ])
+                    ->withInput();
+            }
         }
 
         $ikan->update($data);
@@ -91,10 +153,9 @@ class IkanController extends Controller
 
     public function destroy(Ikan $ikan)
     {
-        if ($ikan->gambar && Storage::disk('public')->exists($ikan->gambar)) {
-            Storage::disk('public')->delete($ikan->gambar);
-        }
-
+        // Di sini kita hanya hapus data di database.
+        // Kalau mau sekalian hapus gambar di Cloudinary,
+        // perlu simpan `public_id` juga, bukan cuma `secure_url`.
         $ikan->delete();
 
         return redirect()->route('admin.ikan.index')
