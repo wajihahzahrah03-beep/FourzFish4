@@ -222,7 +222,7 @@
                     {{-- IMAGE + BADGES --}}
                     <div class="ikan-card-img position-relative">
                         @if ($ikan->gambar)
-                            <img src="{{ asset('storage/' . $ikan->gambar) }}" alt="{{ $ikan->nama }}">
+                            <img src="{{ $ikan->gambar) }}" alt="{{ $ikan->nama }}">
                         @else
                             <div class="d-flex align-items-center justify-content-center bg-light" style="height:180px;">
                                 <span class="text-muted fs-4">🐟</span>
@@ -293,3 +293,4 @@
     @endif
 @endif
 @endsection
+
