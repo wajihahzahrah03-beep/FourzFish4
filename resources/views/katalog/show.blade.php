@@ -242,7 +242,7 @@
         <div class="col-lg-7 mb-4">
             <div class="detail-image-wrapper">
                 @if ($ikan->gambar)
-                    <img src="{{ asset('storage/' . $ikan->gambar) }}" alt="{{ $ikan->nama }}">
+                    <img src="{{ $ikan->gambar) }}" alt="{{ $ikan->nama }}">
                 @else
                     <div class="d-flex align-items-center justify-content-center bg-light" style="min-height: 320px;">
                         <div class="text-center">
@@ -364,3 +364,4 @@
     </div>
 </div>
 @endsection
+
