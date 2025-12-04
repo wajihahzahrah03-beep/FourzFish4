@@ -60,7 +60,7 @@
                                 <td>
                                     <div class="d-flex align-items-center gap-2">
                                         @if(!empty($item['gambar']))
-                                            <img src="{{ asset('storage/' . $item['gambar']) }}"
+                                            <img src="{{ $item['gambar']) }}"
                                                  alt="{{ $item['nama'] }}"
                                                  style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
                                         @endif
@@ -117,3 +117,4 @@
         </div>
     @endif
 @endsection
+
