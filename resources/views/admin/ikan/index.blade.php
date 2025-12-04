@@ -243,7 +243,7 @@
                     <tr>
                         <td>
                             @if ($ikan->gambar)
-                                <img src="{{ asset('storage/' . $ikan->gambar) }}" class="thumb-ikan" alt="{{ $ikan->nama }}">
+                                <img src="{{ $ikan->gambar) }}" class="thumb-ikan" alt="{{ $ikan->nama }}">
                             @else
                                 <div class="bg-light d-flex align-items-center justify-content-center thumb-ikan">
                                     <span class="text-muted">🐟</span>
@@ -307,3 +307,4 @@
     @endif
 </div>
 @endsection
+
